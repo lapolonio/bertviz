@@ -57,7 +57,7 @@ def show(model, model_type, tokenizer, sentence_a, sentence_b=None):
     __location__ = os.path.realpath(
         os.path.join(os.getcwd(), os.path.dirname(__file__)))
     vis_js = open(os.path.join(__location__, 'neuron_view.js')).read()
-    attn_data = get_attention(model, model_type, tokenizer, sentence_a, sentence_b, include_queries_and_keys=True)
+    attn_data = get_attention(model, model_type, tokenizer, sentence_a, sentence_b, include_queries_and_keys=False)
     if model_type == 'gpt2':
         bidirectional = False
     else:
@@ -73,7 +73,6 @@ def show(model, model_type, tokenizer, sentence_a, sentence_b=None):
 
 def get_attention(model, model_type, tokenizer, sentence_a, sentence_b=None, include_queries_and_keys=False):
     """Compute representation of attention to pass to the d3 visualization
-
     Args:
         model: pytorch-transformers model
         model_type: type of model. Valid values 'bert', 'gpt2', 'xlnet', 'roberta'
@@ -81,7 +80,6 @@ def get_attention(model, model_type, tokenizer, sentence_a, sentence_b=None, inc
         sentence_a: Sentence A string
         sentence_b: Sentence B string
         include_queries_and_keys: Indicates whether to include queries/keys in results
-
     Returns:
       Dictionary of attn representations with the structure:
       {
@@ -156,7 +154,8 @@ def get_attention(model, model_type, tokenizer, sentence_a, sentence_b=None, inc
         slice_b = slice(len(tokens_a), len(tokens_a) + len(tokens_b))  # Position corresponding to sentence B in input
     for layer, attn_data in enumerate(attn_data_list):
         # Process attention
-        attn = attn_data['attn'][0]  # assume batch_size=1; shape = [num_heads, source_seq_len, target_seq_len]
+        attn = attn_data[0]  # assume batch_size=1; shape = [num_heads, source_seq_len, target_seq_len]
+        print(layer, attn)
         attn_dict['all'].append(attn.tolist())
         if is_sentence_pair:
             attn_dict['aa'].append(

@@ -2,8 +2,10 @@ import json
 from IPython.core.display import display, HTML, Javascript
 import os
 from .util import format_special_chars, format_attention
+import numpy as np
+import pandas as pd
 
-def model_view(attention, tokens, sentence_b_start=None, prettify_tokens=True):
+def model_view(attention, tokens, sentence_b_start=None, prettify_tokens=True, top_k=None):
     """Render model view
 
         Args:
@@ -40,6 +42,30 @@ def model_view(attention, tokens, sentence_b_start=None, prettify_tokens=True):
     if prettify_tokens:
         tokens = format_special_chars(tokens)
 
+    if top_k is None:
+        top_k = attention[0].shape[1]
+        
+    # create mask
+    mask = [0 if tok == "<s>" or tok == "</s>" else 1 for tok in tokens]
+    mask = np.tile(np.array(mask), (16,1)).transpose()
+    mask = mask * mask.transpose()
+    mask
+
+    # fix max attention per head
+    max_attn = np.zeros((len(attention),attention[0].shape[1]))
+    for i in range(len(attention)): # layer
+        for j in range(attention[0].shape[1]): # head
+            a = attention[i][0][j].detach().numpy()
+            m = mask * a
+            max_attn[i][j] = a.max()
+
+    # filter lower k attention heads per row 
+    attn_sorted = np.argsort(max_attn, axis=1)
+    heads_to_remove = pd.DataFrame(np.where(attn_sorted > top_k)).transpose()
+    for index, row in heads_to_remove.iterrows():
+        attention[row[0]][0][row[1]] = 0
+    
+    
     attn = format_attention(attention)
     attn_data = {
         'all': {
@@ -80,3 +106,4 @@ def model_view(attention, tokens, sentence_b_start=None, prettify_tokens=True):
         raise ValueError(f"Attention has {attn_seq_len} positions, while number of tokens is {len(tokens)}")
     display(Javascript('window.params = %s' % json.dumps(params)))
     display(Javascript(vis_js))
+    return max_attn
